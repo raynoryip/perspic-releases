@@ -78,7 +78,11 @@ log "GUI should appear inside your noVNC desktop in 2-5 seconds."
 log "Log output goes to $DEST_DIR/installer.log"
 
 export DISPLAY
-nohup "./$APPIMAGE_NAME" > installer.log 2>&1 &
+# RunPod containers lack the FUSE kernel module so AppImages can't mount the
+# usual way. --appimage-extract-and-run extracts the squashfs internally and
+# runs without FUSE. On a real customer's Ubuntu Desktop (with FUSE), this is
+# transparently equivalent (~1-2s extraction overhead).
+nohup "./$APPIMAGE_NAME" --appimage-extract-and-run > installer.log 2>&1 &
 INST_PID=$!
 
 cat <<EOF
