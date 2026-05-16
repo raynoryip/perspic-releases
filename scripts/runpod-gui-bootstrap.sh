@@ -47,11 +47,18 @@ apt-get install -y -qq --no-install-recommends firefox-esr 2>/dev/null \
   || apt-get install -y -qq --no-install-recommends firefox 2>/dev/null \
   || log "firefox not in default repos — skip (you can install via snap if needed)"
 
-# ─── 2. VNC password ──────────────────────────────────────────────────────────
-log "configuring VNC password"
+# ─── 2. VNC password (best-effort; fall back to -SecurityTypes None) ─────────
+log "configuring VNC auth"
 mkdir -p ~/.vnc
-echo "$VNC_PASS" | vncpasswd -f > ~/.vnc/passwd
-chmod 600 ~/.vnc/passwd
+VNC_AUTH_TYPE="VncAuth"
+if command -v vncpasswd >/dev/null 2>&1; then
+    echo "$VNC_PASS" | vncpasswd -f > ~/.vnc/passwd 2>/dev/null
+    chmod 600 ~/.vnc/passwd 2>/dev/null
+    log "  vncpasswd OK · auth=VncAuth · password=${VNC_PASS}"
+else
+    log "  vncpasswd binary not found in PATH; falling back to -SecurityTypes None (ok for ephemeral RunPod test pods · do NOT use this in customer machines)"
+    VNC_AUTH_TYPE="None"
+fi
 
 # ─── 3. xstartup — launch XFCE on VNC display :1 ─────────────────────────────
 cat > ~/.vnc/xstartup <<'XEOF'
@@ -70,12 +77,12 @@ log "killing any old VNC session"
 vncserver -kill ":${DISPLAY_NUM}" 2>/dev/null || true
 rm -f /tmp/.X${DISPLAY_NUM}-lock /tmp/.X11-unix/X${DISPLAY_NUM}
 
-log "starting TigerVNC on :${DISPLAY_NUM} (port ${VNC_PORT}, geometry ${SCREEN_GEOM})"
+log "starting TigerVNC on :${DISPLAY_NUM} (port ${VNC_PORT}, geometry ${SCREEN_GEOM}, auth ${VNC_AUTH_TYPE})"
 USER=${USER:-root} vncserver ":${DISPLAY_NUM}" \
     -geometry "${SCREEN_GEOM%x*}" \
     -depth "${SCREEN_GEOM##*x}" \
     -localhost no \
-    -SecurityTypes VncAuth \
+    -SecurityTypes "${VNC_AUTH_TYPE}" \
     -rfbport "${VNC_PORT}"
 
 # ─── 5. start websockify (browser → VNC bridge) ──────────────────────────────
