@@ -78,12 +78,17 @@ vncserver -kill ":${DISPLAY_NUM}" 2>/dev/null || true
 rm -f /tmp/.X${DISPLAY_NUM}-lock /tmp/.X11-unix/X${DISPLAY_NUM}
 
 log "starting TigerVNC on :${DISPLAY_NUM} (port ${VNC_PORT}, geometry ${SCREEN_GEOM}, auth ${VNC_AUTH_TYPE})"
+INSECURE_FLAG=""
+if [ "$VNC_AUTH_TYPE" = "None" ]; then
+    INSECURE_FLAG="--I-KNOW-THIS-IS-INSECURE"
+fi
 USER=${USER:-root} vncserver ":${DISPLAY_NUM}" \
     -geometry "${SCREEN_GEOM%x*}" \
     -depth "${SCREEN_GEOM##*x}" \
     -localhost no \
     -SecurityTypes "${VNC_AUTH_TYPE}" \
-    -rfbport "${VNC_PORT}"
+    -rfbport "${VNC_PORT}" \
+    ${INSECURE_FLAG}
 
 # ─── 5. start websockify (browser → VNC bridge) ──────────────────────────────
 log "starting websockify on port ${NOVNC_PORT} (browser entrypoint)"
